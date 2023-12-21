@@ -141,14 +141,17 @@
     # following lets users write `#include <grpc/grpc.h>`.
     s.header_dir = name
 
+    # The module map created automatically by Cocoapods doesn't work for C libraries like gRPC-Core.
+    s.module_map = 'include/grpc/module.modulemap'
+
     # To compile the library, we need the user headers search path (quoted includes) to point to the
     # root of the repo, third_party/** and two upb generated directories, and the system headers
     # search path (angled includes) to point to `include/`.
     s.pod_target_xcconfig = {
       'HEADER_SEARCH_PATHS' => '"$(inherited)" "$(PODS_TARGET_SRCROOT)/include"',
       'USER_HEADER_SEARCH_PATHS' => '"$(PODS_TARGET_SRCROOT)"'${"\\"}
-          ' "$(PODS_TARGET_SRCROOT)/src/core/ext/upb-generated"'${"\\"}
-          ' "$(PODS_TARGET_SRCROOT)/src/core/ext/upbdefs-generated"'${"\\"}
+          ' "$(PODS_TARGET_SRCROOT)/src/core/ext/upb-gen"'${"\\"}
+          ' "$(PODS_TARGET_SRCROOT)/src/core/ext/upbdefs-gen"'${"\\"}
           ' "$(PODS_TARGET_SRCROOT)/third_party/re2"'${"\\"}
           ' "$(PODS_TARGET_SRCROOT)/third_party/upb"'${"\\"}
           ' "$(PODS_TARGET_SRCROOT)/third_party/utf8_range"'${"\\"}

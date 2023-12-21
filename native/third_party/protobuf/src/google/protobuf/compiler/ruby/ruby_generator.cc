@@ -1,32 +1,9 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// https://developers.google.com/protocol-buffers/
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-// notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-// copyright notice, this list of conditions and the following disclaimer
-// in the documentation and/or other materials provided with the
-// distribution.
-//     * Neither the name of Google Inc. nor the names of its
-// contributors may be used to endorse or promote products derived from
-// this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file or at
+// https://developers.google.com/open-source/licenses/bsd
 
 #include "google/protobuf/compiler/ruby/ruby_generator.h"
 
@@ -63,7 +40,7 @@ void GenerateEnumAssignment(absl::string_view prefix, const EnumDescriptor* en,
                             io::Printer* printer);
 std::string DefaultValueForField(const FieldDescriptor* field);
 
-template<class numeric_type>
+template <class numeric_type>
 std::string NumberToString(numeric_type value) {
   std::ostringstream os;
   os << value;
@@ -87,7 +64,6 @@ bool IsUpper(char ch) { return ch >= 'A' && ch <= 'Z'; }
 bool IsAlpha(char ch) { return IsLower(ch) || IsUpper(ch); }
 
 char UpperChar(char ch) { return IsLower(ch) ? (ch - 'a' + 'A') : ch; }
-
 
 // Package names in protobuf are snake_case by convention, but Ruby module
 // names must be PascalCased.
@@ -146,14 +122,12 @@ void GenerateMessageAssignment(absl::string_view prefix,
     return;
   }
 
+  printer->Print("$prefix$$name$ = ", "prefix", prefix, "name",
+                 RubifyConstant(message->name()));
   printer->Print(
-    "$prefix$$name$ = ",
-    "prefix", prefix,
-    "name", RubifyConstant(message->name()));
-  printer->Print(
-    "::Google::Protobuf::DescriptorPool.generated_pool."
-    "lookup(\"$full_name$\").msgclass\n",
-    "full_name", message->full_name());
+      "::Google::Protobuf::DescriptorPool.generated_pool."
+      "lookup(\"$full_name$\").msgclass\n",
+      "full_name", message->full_name());
 
   std::string nested_prefix =
       absl::StrCat(prefix, RubifyConstant(message->name()), "::");
@@ -167,14 +141,12 @@ void GenerateMessageAssignment(absl::string_view prefix,
 
 void GenerateEnumAssignment(absl::string_view prefix, const EnumDescriptor* en,
                             io::Printer* printer) {
+  printer->Print("$prefix$$name$ = ", "prefix", prefix, "name",
+                 RubifyConstant(en->name()));
   printer->Print(
-    "$prefix$$name$ = ",
-    "prefix", prefix,
-    "name", RubifyConstant(en->name()));
-  printer->Print(
-    "::Google::Protobuf::DescriptorPool.generated_pool."
-    "lookup(\"$full_name$\").enummodule\n",
-    "full_name", en->full_name());
+      "::Google::Protobuf::DescriptorPool.generated_pool."
+      "lookup(\"$full_name$\").enummodule\n",
+      "full_name", en->full_name());
 }
 
 int GeneratePackageModules(const FileDescriptor* file, io::Printer* printer) {
@@ -220,9 +192,7 @@ int GeneratePackageModules(const FileDescriptor* file, io::Printer* printer) {
     if (need_change_to_module) {
       component = PackageToModule(component);
     }
-    printer->Print(
-      "module $name$\n",
-      "name", component);
+    printer->Print("module $name$\n", "name", component);
     printer->Indent();
     levels++;
   }
@@ -233,8 +203,7 @@ void EndPackageModules(int levels, io::Printer* printer) {
   while (levels > 0) {
     levels--;
     printer->Outdent();
-    printer->Print(
-      "end\n");
+    printer->Print("end\n");
   }
 }
 
@@ -288,7 +257,7 @@ pool = Google::Protobuf::DescriptorPool.generated_pool
 
 begin
   pool.add_serialized_file(descriptor_data)
-rescue TypeError => e
+rescue TypeError
   # Compatibility code: will be removed in the next major version.
   require 'google/protobuf/descriptor_pb'
   parsed = Google::Protobuf::FileDescriptorProto.decode(descriptor_data)
@@ -327,14 +296,10 @@ bool GenerateFile(const FileDescriptor* file, io::Printer* printer,
 
   if (file->dependency_count() != 0) {
     for (int i = 0; i < file->dependency_count(); i++) {
-      printer->Print("require '$name$'\n", "name", GetRequireName(file->dependency(i)->name()));
+      printer->Print("require '$name$'\n", "name",
+                     GetRequireName(file->dependency(i)->name()));
     }
     printer->Print("\n");
-  }
-
-  // TODO: Remove this when ruby supports extensions.
-  if (file->extension_count() > 0) {
-    ABSL_LOG(WARNING) << "Extensions are not yet supported in Ruby.";
   }
 
   GenerateBinaryDescriptor(file, printer, error);
@@ -351,11 +316,10 @@ bool GenerateFile(const FileDescriptor* file, io::Printer* printer,
   return true;
 }
 
-bool Generator::Generate(
-    const FileDescriptor* file,
-    const std::string& parameter,
-    GeneratorContext* generator_context,
-    std::string* error) const {
+bool Generator::Generate(const FileDescriptor* file,
+                         const std::string& parameter,
+                         GeneratorContext* generator_context,
+                         std::string* error) const {
   if (FileDescriptorLegacy(file).syntax() ==
       FileDescriptorLegacy::Syntax::SYNTAX_UNKNOWN) {
     *error = "Invalid or unsupported proto syntax";

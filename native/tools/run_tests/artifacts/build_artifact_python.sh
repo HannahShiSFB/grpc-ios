@@ -26,7 +26,7 @@ export AUDITWHEEL=${AUDITWHEEL:-auditwheel}
 source tools/internal_ci/helper_scripts/prepare_ccache_symlinks_rc
 
 # Needed for building binary distribution wheels -- bdist_wheel
-"${PYTHON}" -m pip install --upgrade wheel setuptools
+"${PYTHON}" -m pip install --upgrade pip wheel setuptools
 
 if [ "$GRPC_SKIP_PIP_CYTHON_UPGRADE" == "" ]
 then
@@ -234,7 +234,7 @@ then
   # through setup.py, but we can optimize it with "bdist_wheel" command, which
   # skips the wheel building step.
 
-  # Build grpcio_reflection source distribution
+  # Build xds_protos source distribution
   ${SETARCH_CMD} "${PYTHON}" tools/distrib/python/xds_protos/build.py
   ${SETARCH_CMD} "${PYTHON}" tools/distrib/python/xds_protos/setup.py \
       sdist bdist_wheel install

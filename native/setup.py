@@ -72,11 +72,9 @@ SSL_INCLUDE = (
     os.path.join("third_party", "boringssl-with-bazel", "src", "include"),
 )
 UPB_INCLUDE = (os.path.join("third_party", "upb"),)
-UPB_GRPC_GENERATED_INCLUDE = (
-    os.path.join("src", "core", "ext", "upb-generated"),
-)
+UPB_GRPC_GENERATED_INCLUDE = (os.path.join("src", "core", "ext", "upb-gen"),)
 UPBDEFS_GRPC_GENERATED_INCLUDE = (
-    os.path.join("src", "core", "ext", "upbdefs-generated"),
+    os.path.join("src", "core", "ext", "upbdefs-gen"),
 )
 UTF8_RANGE_INCLUDE = (os.path.join("third_party", "utf8_range"),)
 XXHASH_INCLUDE = (os.path.join("third_party", "xxhash"),)
@@ -109,6 +107,7 @@ CLASSIFIERS = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: Apache Software License",
 ]
 
@@ -291,6 +290,11 @@ if EXTRA_ENV_LINK_ARGS is None:
             EXTRA_ENV_LINK_ARGS += " -latomic"
     if "linux" in sys.platform:
         EXTRA_ENV_LINK_ARGS += " -static-libgcc"
+
+# Explicitly link Core Foundation framework for MacOS to ensure no symbol is
+# missing when compiled using package managers like Conda.
+if "darwin" in sys.platform:
+    EXTRA_ENV_LINK_ARGS += " -framework CoreFoundation"
 
 EXTRA_COMPILE_ARGS = shlex.split(EXTRA_ENV_COMPILE_ARGS)
 EXTRA_LINK_ARGS = shlex.split(EXTRA_ENV_LINK_ARGS)
