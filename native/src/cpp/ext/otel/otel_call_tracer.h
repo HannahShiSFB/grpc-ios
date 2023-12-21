@@ -34,6 +34,7 @@
 #include <grpc/support/time.h>
 
 #include "src/core/lib/channel/call_tracer.h"
+#include "src/core/lib/channel/tcp_tracer.h"
 #include "src/core/lib/gprpp/sync.h"
 #include "src/core/lib/iomgr/error.h"
 #include "src/core/lib/resource_quota/arena.h"
@@ -89,6 +90,7 @@ class OpenTelemetryCallTracer : public grpc_core::ClientCallTracer {
     void RecordEnd(const gpr_timespec& /*latency*/) override;
     void RecordAnnotation(absl::string_view /*annotation*/) override;
     void RecordAnnotation(const Annotation& /*annotation*/) override;
+    std::shared_ptr<grpc_core::TcpTracerInterface> StartNewTcpTrace() override;
 
    private:
     const OpenTelemetryCallTracer* parent_;
@@ -100,7 +102,8 @@ class OpenTelemetryCallTracer : public grpc_core::ClientCallTracer {
 
   explicit OpenTelemetryCallTracer(OpenTelemetryClientFilter* parent,
                                    grpc_core::Slice path,
-                                   grpc_core::Arena* arena);
+                                   grpc_core::Arena* arena,
+                                   bool registered_method);
   ~OpenTelemetryCallTracer() override;
 
   std::string TraceId() override {
@@ -124,10 +127,13 @@ class OpenTelemetryCallTracer : public grpc_core::ClientCallTracer {
   void RecordAnnotation(const Annotation& /*annotation*/) override;
 
  private:
+  absl::string_view MethodForStats() const;
+
   const OpenTelemetryClientFilter* parent_;
   // Client method.
   grpc_core::Slice path_;
   grpc_core::Arena* arena_;
+  const bool registered_method_;
   grpc_core::Mutex mu_;
   // Non-transparent attempts per call
   uint64_t retries_ ABSL_GUARDED_BY(&mu_) = 0;

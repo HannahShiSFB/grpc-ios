@@ -82,7 +82,7 @@ class XdsClientTest : public ::testing::Test {
    public:
     class FakeNode : public Node {
      public:
-      FakeNode() = default;
+      FakeNode() : id_("xds_client_test") {}
       const std::string& id() const override { return id_; }
       const std::string& cluster() const override { return cluster_; }
       const std::string& locality_region() const override {
@@ -112,7 +112,7 @@ class XdsClientTest : public ::testing::Test {
       }
 
      private:
-      std::string id_ = "xds_client_test";
+      std::string id_;
       std::string cluster_;
       std::string locality_region_;
       std::string locality_zone_;
@@ -578,7 +578,8 @@ class XdsClientTest : public ::testing::Test {
       FakeXdsBootstrap::Builder bootstrap_builder = FakeXdsBootstrap::Builder(),
       Duration resource_request_timeout = Duration::Seconds(15)) {
     auto transport_factory = MakeOrphanable<FakeXdsTransportFactory>();
-    transport_factory_ = transport_factory->Ref();
+    transport_factory_ =
+        transport_factory->Ref().TakeAsSubclass<FakeXdsTransportFactory>();
     xds_client_ = MakeRefCounted<XdsClient>(
         bootstrap_builder.Build(), std::move(transport_factory),
         grpc_event_engine::experimental::GetDefaultEventEngine(), "foo agent",

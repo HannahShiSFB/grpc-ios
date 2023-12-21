@@ -111,7 +111,8 @@ class MetadataExchangeTest
     : public OTelPluginEnd2EndTest,
       public ::testing::WithParamInterface<TestScenario> {
  protected:
-  void Init(const absl::flat_hash_set<absl::string_view>& metric_names) {
+  void Init(const absl::flat_hash_set<absl::string_view>& metric_names,
+            bool enable_client_side_injector = true) {
     const char* kBootstrap =
         "{\"node\": {\"id\": "
         "\"projects/1234567890/networks/mesh:mesh-id/nodes/"
@@ -134,7 +135,12 @@ class MetadataExchangeTest
         metric_names, /*resource=*/GetParam().GetTestResource(),
         /*labels_injector=*/
         std::make_unique<grpc::internal::ServiceMeshLabelsInjector>(
-            GetParam().GetTestResource().GetAttributes()));
+            GetParam().GetTestResource().GetAttributes()),
+        /*test_no_meter_provider=*/false,
+        /*target_selector=*/
+        [enable_client_side_injector](absl::string_view /*target*/) {
+          return enable_client_side_injector;
+        });
   }
 
   ~MetadataExchangeTest() override {
@@ -150,18 +156,18 @@ class MetadataExchangeTest
       const std::map<std::string,
                      opentelemetry::sdk::common::OwnedAttributeValue>&
           attributes) {
+    EXPECT_EQ(
+        absl::get<std::string>(attributes.at("csm.workload_canonical_service")),
+        "canonical_service");
     EXPECT_EQ(absl::get<std::string>(attributes.at("csm.mesh_id")), "mesh-id");
     switch (GetParam().type()) {
       case TestScenario::ResourceType::kGke:
         EXPECT_EQ(
             absl::get<std::string>(attributes.at("csm.remote_workload_type")),
             "gcp_kubernetes_engine");
-        EXPECT_EQ(absl::get<std::string>(
-                      attributes.at("csm.remote_workload_pod_name")),
-                  "pod");
-        EXPECT_EQ(absl::get<std::string>(
-                      attributes.at("csm.remote_workload_container_name")),
-                  "container");
+        EXPECT_EQ(
+            absl::get<std::string>(attributes.at("csm.remote_workload_name")),
+            "workload");
         EXPECT_EQ(absl::get<std::string>(
                       attributes.at("csm.remote_workload_namespace_name")),
                   "namespace");
@@ -197,6 +203,7 @@ class MetadataExchangeTest
   char* bootstrap_file_name_ = nullptr;
 };
 
+// Verify that grpc.client.attempt.started does not get service mesh attributes
 TEST_P(MetadataExchangeTest, ClientAttemptStarted) {
   Init(/*metric_names=*/{
       grpc::internal::OTelClientAttemptStartedInstrumentName()});
@@ -245,6 +252,7 @@ TEST_P(MetadataExchangeTest, ClientAttemptDuration) {
   VerifyServiceMeshAttributes(attributes);
 }
 
+// Verify that grpc.server.call.started does not get service mesh attributes
 TEST_P(MetadataExchangeTest, ServerCallStarted) {
   Init(
       /*metric_names=*/{grpc::internal::OTelServerCallStartedInstrumentName()});
@@ -287,6 +295,35 @@ TEST_P(MetadataExchangeTest, ServerCallDuration) {
   VerifyServiceMeshAttributes(attributes);
 }
 
+// Test that the server records unknown when the client does not send metadata
+TEST_P(MetadataExchangeTest, ClientDoesNotSendMetadata) {
+  Init(
+      /*metric_names=*/{grpc::internal::OTelServerCallDurationInstrumentName()},
+      /*enable_client_side_injector=*/false);
+  SendRPC();
+  const char* kMetricName = "grpc.server.call.duration";
+  auto data = ReadCurrentMetricsData(
+      [&](const absl::flat_hash_map<
+          std::string,
+          std::vector<opentelemetry::sdk::metrics::PointDataAttributes>>&
+              data) { return !data.contains(kMetricName); });
+  ASSERT_EQ(data[kMetricName].size(), 1);
+  auto point_data =
+      absl::get_if<opentelemetry::sdk::metrics::HistogramPointData>(
+          &data[kMetricName][0].point_data);
+  ASSERT_NE(point_data, nullptr);
+  ASSERT_EQ(point_data->count_, 1);
+  const auto& attributes = data[kMetricName][0].attributes.GetAttributes();
+  EXPECT_EQ(absl::get<std::string>(attributes.at("grpc.method")), kMethodName);
+  EXPECT_EQ(absl::get<std::string>(attributes.at("grpc.status")), "OK");
+  EXPECT_EQ(
+      absl::get<std::string>(attributes.at("csm.workload_canonical_service")),
+      "canonical_service");
+  EXPECT_EQ(absl::get<std::string>(attributes.at("csm.mesh_id")), "mesh-id");
+  EXPECT_EQ(absl::get<std::string>(attributes.at("csm.remote_workload_type")),
+            "unknown");
+}
+
 INSTANTIATE_TEST_SUITE_P(
     MetadataExchange, MetadataExchangeTest,
     ::testing::Values(
@@ -307,6 +344,7 @@ INSTANTIATE_TEST_SUITE_P(
 int main(int argc, char** argv) {
   grpc::testing::TestEnvironment env(&argc, argv);
   ::testing::InitGoogleTest(&argc, argv);
-  grpc_core::SetEnv("GSM_CANONICAL_SERVICE_NAME", "canonical_service");
+  grpc_core::SetEnv("CSM_WORKLOAD_NAME", "workload");
+  grpc_core::SetEnv("CSM_CANONICAL_SERVICE_NAME", "canonical_service");
   return RUN_ALL_TESTS();
 }
