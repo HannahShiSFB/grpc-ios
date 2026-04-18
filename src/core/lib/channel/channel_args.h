@@ -33,8 +33,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "absl/meta/type_traits.h"
-#include "absl/strings/string_view.h"
+#include "src/core/channelz/property_list.h"
 #include "src/core/lib/surface/channel_stack_type.h"
 #include "src/core/util/avl.h"
 #include "src/core/util/debug_location.h"
@@ -44,11 +43,13 @@
 #include "src/core/util/ref_counted_string.h"
 #include "src/core/util/time.h"
 #include "src/core/util/useful.h"
+#include "absl/meta/type_traits.h"
+#include "absl/strings/string_view.h"
 
 // TODO(hork): When we're ready to allow setting via a channel arg from the
 // application, replace this with a macro in
 // include/grpc/impl/codegen/grpc_types.h.
-#define GRPC_INTERNAL_ARG_EVENT_ENGINE "grpc.internal.event_engine"
+#define GRPC_INTERNAL_ARG_EVENT_ENGINE "grpc.experimental.event_engine"
 
 // Channel args are intentionally immutable, to avoid the need for locking.
 
@@ -506,6 +507,8 @@ class ChannelArgs {
   }
   GRPC_MUST_USE_RESULT ChannelArgs Remove(absl::string_view name) const;
   bool Contains(absl::string_view name) const;
+
+  channelz::PropertyList ToPropertyList() const;
 
   GRPC_MUST_USE_RESULT ChannelArgs
   RemoveAllKeysWithPrefix(absl::string_view prefix) const;
