@@ -16,6 +16,7 @@
 //
 //
 
+#include <grpc/event_engine/event_engine.h>
 #include <grpc/grpc.h>
 #include <grpc/impl/channel_arg_names.h>
 #include <grpc/impl/compression_types.h>
@@ -44,13 +45,13 @@
 #include <utility>
 #include <vector>
 
-#include "absl/log/check.h"
-#include "absl/log/log.h"
 #include "src/core/ext/transport/chttp2/server/chttp2_server.h"
 #include "src/core/server/server.h"
+#include "src/core/util/grpc_check.h"
 #include "src/core/util/string.h"
 #include "src/core/util/useful.h"
 #include "src/cpp/server/external_connection_acceptor_impl.h"
+#include "absl/log/log.h"
 
 namespace grpc {
 namespace {
@@ -186,7 +187,7 @@ void ServerBuilder::experimental_type::SetAuthorizationPolicyProvider(
 void ServerBuilder::experimental_type::EnableCallMetricRecording(
     experimental::ServerMetricRecorder* server_metric_recorder) {
   builder_->AddChannelArgument(GRPC_ARG_SERVER_CALL_METRIC_RECORDING, 1);
-  CHECK_EQ(builder_->server_metric_recorder_, nullptr);
+  GRPC_CHECK_EQ(builder_->server_metric_recorder_, nullptr);
   builder_->server_metric_recorder_ = server_metric_recorder;
 }
 
@@ -311,7 +312,19 @@ ChannelArguments ServerBuilder::BuildChannelArgs() {
                               authorization_provider_->c_provider(),
                               grpc_authorization_policy_provider_arg_vtable());
   }
+  if (event_engine_ != nullptr) {
+    args.SetPointerWithVtable(
+        GRPC_ARG_EVENT_ENGINE, &event_engine_,
+        grpc_event_engine::experimental::grpc_event_engine_arg_vtable());
+  }
   return args;
+}
+
+ServerBuilder& ServerBuilder::SetEventEngine(
+    std::shared_ptr<grpc_event_engine::experimental::EventEngine>
+        event_engine) {
+  event_engine_ = event_engine;
+  return *this;
 }
 
 std::unique_ptr<grpc::Server> ServerBuilder::BuildAndStart() {
